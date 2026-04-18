@@ -1,0 +1,30 @@
+# Web framework
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+jinja2==3.1.4
+
+# Scraping
+httpx==0.28.1
+beautifulsoup4==4.12.3
+lxml==5.3.0
+
+# Tareas asíncronas
+celery==5.4.0
+redis==5.2.1
+
+# Scheduler (keep-alive)
+apscheduler==3.10.4
+
+# IA
+langchain==0.3.14
+langchain-core==0.3.63
+langchain-openai==0.3.0
+
+# Configuración
+pydantic-settings==2.7.1
+python-dotenv==1.0.1
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.25.0
+pytest-cov==6.0.0

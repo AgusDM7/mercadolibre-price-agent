@@ -1,0 +1,17 @@
+# render.yaml — Configuración de deploy para Render
+# Documentación: https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: mercadolibre-agent
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false  # Se configura manualmente en el dashboard
+      - key: REDIS_URL
+        sync: false  # URL de Redis Cloud
+      - key: PYTHON_VERSION
+        value: 3.11.9

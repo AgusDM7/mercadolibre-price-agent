@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MercadoLibre Agent — Análisis IA de Productos</title>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --c0: #161616;
+            --c1: #161616;
+            --c2: #1e1e1e;
+            --c3: #2a2a2a;
+            --c4: #3a3a3a;
+            --c5: #555;
+            --c6: #888;
+            --c7: #bbb;
+            --c8: #e8e8e8;
+            --c9: #f5f5f5;
+            --grn: #5a9e6e;
+            --grn-bg: rgba(90, 158, 110, .06);
+            --grn-border: rgba(90, 158, 110, .2);
+            --warn: #c8924a;
+            --warn-bg: rgba(200, 146, 74, .08);
+            --warn-border: rgba(200, 146, 74, .22);
+            --danger: #c97070;
+            --r: 10px;
+            --rs: 6px
+        }
+
+        *,
+        *::before,
+        *::after {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            font-family: 'DM Sans', -apple-system, sans-serif;
+            background: var(--c0);
+            color: var(--c8);
+            min-height: 100vh;
+            line-height: 1.6;
+            font-size: 1.05rem
+        }
+
+        .container {
+            max-width: 860px;
+            margin: 0 auto;
+            padding: 3rem 1.5rem
+        }
+
+        .header {
+            margin-bottom: 5.2rem
+        }
+
+        .mono-label,
+        .resumen-card h2,
+        .tabla-titulo,
+        .mejor-opcion-card h2,
+        th {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .82rem;
+            color: var(--c5);
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            font-weight: 500
+        }
+
+        .mono-label {
+            font-size: .88rem;
+            display: block;
+            margin-bottom: .9rem
+        }
+
+        .header h1 {
+            font-size: 3.6rem;
+            font-weight: 700;
+            letter-spacing: -.035em;
+            line-height: 1.08;
+            color: var(--c9);
+            margin-bottom: .7rem
+        }
+
+        .header p {
+            color: var(--c6);
+            font-size: 1.15rem;
+            max-width: 560px;
+            line-height: 1.55
+        }
+
+        .search-box,
+        .resumen-card,
+        .mejor-opcion-card,
+        .tabla-container {
+            background: var(--c1);
+            border: 1px solid var(--c3);
+            border-radius: var(--r)
+        }
+
+        .search-box {
+            padding: 1.25rem;
+            margin-bottom: 2rem
+        }
+
+        .search-form {
+            display: flex;
+            gap: .6rem
+        }
+
+        .search-input {
+            flex: 1;
+            background: var(--c2);
+            border: 1px solid var(--c3);
+            border-radius: var(--rs);
+            padding: 1rem 1.2rem;
+            color: var(--c9);
+            font-family: inherit;
+            font-size: 1.05rem;
+            outline: none;
+            transition: border-color .15s
+        }
+
+        .search-input::placeholder {
+            color: var(--c5)
+        }
+
+        .search-input:focus {
+            border-color: var(--c5)
+        }
+
+        .btn-buscar {
+            background: #f7ea71;
+            color: var(--c0);
+            border: none;
+            border-radius: var(--rs);
+            padding: 1rem 1.7rem;
+            font-family: inherit;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background .15s
+        }
+
+        .btn-buscar:hover {
+            background: #efe88e
+        }
+
+        .header h1 .ml-accent {
+            color: #f7ea71
+        }
+
+        .search-hint {
+            font-size: .85rem;
+            color: var(--c5);
+            margin-top: .9rem;
+            font-family: 'JetBrains Mono', monospace
+        }
+
+        .loader {
+            text-align: center;
+            padding: 3rem 1rem
+        }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 2px solid var(--c3);
+            border-top-color: var(--c7);
+            border-radius: 50%;
+            animation: spin .8s linear infinite;
+            margin: 0 auto 1rem
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        .loader-text {
+            color: var(--c7);
+            font-size: .9rem;
+            font-weight: 500;
+            margin-bottom: .25rem
+        }
+
+        .loader-subtext {
+            color: var(--c5);
+            font-size: .82rem
+        }
+
+        .error-msg {
+            background: rgba(201, 112, 112, .07);
+            border: 1px solid rgba(201, 112, 112, .2);
+            color: var(--danger);
+            padding: 1rem 1.2rem;
+            border-radius: var(--rs);
+            text-align: center;
+            font-size: .88rem
+        }
+
+        .resumen-card {
+            padding: 1.3rem 1.5rem;
+            margin-bottom: 1rem
+        }
+
+        .resumen-card h2,
+        .tabla-titulo {
+            margin-bottom: .6rem;
+            display: block
+        }
+
+        .resumen-card p {
+            color: var(--c7);
+            font-size: 1.02rem;
+            line-height: 1.65
+        }
+
+        .mejor-opcion-card {
+            border-color: var(--c4);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem
+        }
+
+        .mejor-opcion-card h2 {
+            margin-bottom: .6rem
+        }
+
+        .mejor-opcion-card h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--c9);
+            line-height: 1.35;
+            margin-bottom: .85rem
+        }
+
+        .precio-grande {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.4rem;
+            font-weight: 700;
+            color: var(--grn);
+            margin-bottom: 1rem;
+            letter-spacing: -.02em
+        }
+
+        .badges {
+            display: flex;
+            gap: .4rem;
+            flex-wrap: wrap;
+            margin-bottom: .9rem
+        }
+
+        .badge {
+            font-size: .73rem;
+            padding: .25rem .6rem;
+            border-radius: 20px;
+            background: var(--c2);
+            color: var(--c7);
+            border: 1px solid var(--c3);
+            display: inline-block
+        }
+
+        .badge-ok {
+            color: var(--grn);
+            border-color: var(--grn-border);
+            background: var(--grn-bg)
+        }
+
+        .badge-warn {
+            color: var(--warn);
+            border-color: var(--warn-border);
+            background: var(--warn-bg)
+        }
+
+        .razon {
+            font-size: 1rem;
+            color: var(--c6);
+            margin-bottom: 1.1rem;
+            line-height: 1.65
+        }
+
+        .btn-ver {
+            display: inline-block;
+            font-size: .85rem;
+            font-weight: 500;
+            color: var(--c7);
+            border: 1px solid var(--c4);
+            border-radius: var(--rs);
+            padding: .45rem 1rem;
+            text-decoration: none;
+            background: transparent;
+            transition: border-color .15s, color .15s
+        }
+
+        .btn-ver:hover {
+            border-color: var(--c6);
+            color: var(--c9)
+        }
+
+        .tabla-container {
+            overflow: hidden;
+            overflow-x: auto
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: .95rem
+        }
+
+        thead {
+            background: var(--c2)
+        }
+
+        th {
+            padding: .7rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--c3)
+        }
+
+        td {
+            padding: .75rem 1rem;
+            border-bottom: 1px solid #1a1a1a;
+            color: var(--c7);
+            vertical-align: middle
+        }
+
+        tr:last-child td {
+            border-bottom: none
+        }
+
+        tr:hover td {
+            background: var(--c2)
+        }
+
+        .td-titulo {
+            max-width: 260px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            color: var(--c8)
+        }
+
+        .td-precio {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            color: var(--c8);
+            white-space: nowrap
+        }
+
+        .td-center {
+            text-align: center;
+            white-space: nowrap
+        }
+
+        td a {
+            color: var(--c6);
+            text-decoration: none;
+            font-size: .82rem
+        }
+
+        td a:hover,
+        .footer a:hover {
+            color: var(--c9)
+        }
+
+        .footer {
+            margin-top: 2.5rem;
+            padding-top: 1.2rem;
+            border-top: 1px solid var(--c2);
+            font-size: .75rem;
+            color: var(--c5);
+            text-align: center
+        }
+
+        .footer a {
+            color: var(--c6);
+            text-decoration: none
+        }
+
+        .mascota {
+            position: fixed;
+            left: 2.5rem;
+            bottom: -3.5rem;
+            width: 380px;
+            height: 380px;
+            image-rendering: pixelated;
+            image-rendering: -moz-crisp-edges;
+            pointer-events: none;
+            z-index: 100;
+            user-select: none
+        }
+
+        @media (max-width:600px) {
+            .container {
+                padding: 1.5rem 1rem
+            }
+
+            .header h1 {
+                font-size: 2.3rem
+            }
+
+            .header p {
+                font-size: 1rem
+            }
+
+            .search-form {
+                flex-direction: column
+            }
+
+            .btn-buscar {
+                width: 100%
+            }
+
+            .precio-grande {
+                font-size: 1.4rem
+            }
+
+            .mejor-opcion-card {
+                padding: 1.2rem
+            }
+
+            .mascota {
+                width: 180px;
+                height: 180px;
+                left: -.5rem;
+                bottom: -.5rem
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="header">
+            <span class="mono-label">MercadoLibre Agent · IA</span>
+            <h1>Encontrá el mejor producto de <span class="ml-accent">MercadoLibre</span></h1>
+            <p>Deja que nuestro amigo Scrapi analice precios y vendedores para recomendarte el mejor producto de todo Mercadolibre.</p>
+        </header>
+
+        <div class="search-box">
+            <form class="search-form" hx-post="/buscar" hx-target="#resultado" hx-swap="innerHTML">
+                <input type="text" name="query" class="search-input" required minlength="3" autocomplete="off"
+                    placeholder="Ej: iPhone 15 128gb, PlayStation 5, Notebook Lenovo…">
+                <button type="submit" class="btn-buscar">Buscar</button>
+            </form>
+            <p class="search-hint">→ resultados en 10–20 s · límite 5 búsquedas por hora</p>
+        </div>
+
+        <div id="resultado"></div>
+
+        <footer class="footer">
+            Hecho con FastAPI · Celery · LangChain · HTMX ·
+            <a href="https://github.com" target="_blank" rel="noopener">GitHub</a>
+        </footer>
+    </div>
+
+    <img id="mascota" class="mascota" src="/static/mascota/mascotastart.gif" alt="Mascota">
+
+    <script>
+        (function () {
+            const mascota = document.getElementById('mascota');
+            const form = document.querySelector('.search-form');
+            const resultado = document.getElementById('resultado');
+            const SPRITES = { start: '/static/mascota/mascotastart.gif', search: '/static/mascota/mascotasearch.gif', finish: '/static/mascota/mascotafinish.gif' };
+            const setMascota = e => mascota.src = SPRITES[e] + '?t=' + Date.now();
+
+            form.addEventListener('htmx:beforeRequest', () => setMascota('search'));
+            resultado.addEventListener('htmx:afterSwap', () => {
+                if (resultado.querySelector('.loader')) setMascota('search');
+                else if (resultado.querySelector('.error-msg')) setMascota('start');
+                else setMascota('finish');
+            });
+            document.body.addEventListener('htmx:responseError', () => setMascota('start'));
+        })();
+    </script>
+</body>
+
+</html>
