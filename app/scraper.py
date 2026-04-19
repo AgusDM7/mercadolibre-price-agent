@@ -43,9 +43,14 @@ def _construir_headers() -> dict[str, str]:
 
 
 def _construir_url(query: str) -> str:
-    """Construye la URL de búsqueda de MercadoLibre."""
-    query_encoded = quote_plus(query)
-    return f"{ML_BASE_URL}/{query_encoded}"
+    """
+    Construye la URL de búsqueda de MercadoLibre.
+    Envolvemos la query en comillas dobles para forzar búsqueda por frase.
+    Sin comillas, ML cae en "búsqueda ampliada" cuando el último término tiene
+    
+    """
+    query_entrecomillada = f'"{query}"'
+    return f"{ML_BASE_URL}/{quote_plus(query_entrecomillada)}"
 
 
 def _extraer_precio(texto: str) -> float | None:
@@ -82,7 +87,10 @@ def _parsear_productos(html: str, max_productos: int) -> list[Producto]:
             titulo = titulo_elem.get_text(strip=True) if titulo_elem else None
 
             # --- URL (del mismo link del título) ---
-            url = titulo_elem.get("href", "") if titulo_elem else ""
+            # Cortamos en '#' para descartar el fragment de tracking de ML (polycard_client, tracking_id, etc.)
+            # que infla los tokens del prompt al LLM sin aportar información útil.
+            url_raw = titulo_elem.get("href", "") if titulo_elem else ""
+            url = url_raw.split("#", 1)[0]
 
             # --- Precio (primer fracción dentro del precio actual) ---
             precio_elem = item.select_one(

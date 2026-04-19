@@ -26,7 +26,7 @@ class Settings(BaseSettings):
 
     # --- Rate Limiting ---
     # Máximo de búsquedas por IP por hora
-    max_busquedas_por_hora: int = 5
+    max_busquedas_por_hora: int = 50
 
     # --- App ---
     debug: bool = False

@@ -27,32 +27,22 @@ PRODUCTOS_EJEMPLO = [
 ]
 
 # Respuesta simulada de GPT-4o mini
+# Tras ordenar PRODUCTOS_EJEMPLO por precio: índice 1 = Usado ($900K), índice 2 = Nuevo ($1.2M)
 RESPUESTA_MOCK = {
-    "mejor_opcion": {
-        "titulo": "iPhone 15 128GB Nuevo",
-        "precio": 1200000.0,
-        "url": "https://mercadolibre.com.ar/p1",
-        "es_confiable": True,
-        "razon_confianza": "Vendedor con envío gratis, indica MercadoLíder",
-        "vale_la_pena": True,
-    },
+    "mejor_opcion_indice": 2,
     "resumen": "Se encontraron 2 opciones. La mejor relación precio-confianza es el nuevo con envío gratis.",
     "productos_analizados": [
         {
-            "titulo": "iPhone 15 128GB Nuevo",
-            "precio": 1200000.0,
-            "url": "https://mercadolibre.com.ar/p1",
-            "es_confiable": True,
-            "razon_confianza": "Envío gratis sugiere vendedor verificado",
-            "vale_la_pena": True,
-        },
-        {
-            "titulo": "iPhone 15 128GB Usado",
-            "precio": 900000.0,
-            "url": "https://mercadolibre.com.ar/p2",
+            "indice": 1,
             "es_confiable": False,
             "razon_confianza": "Sin envío gratis, producto usado",
             "vale_la_pena": False,
+        },
+        {
+            "indice": 2,
+            "es_confiable": True,
+            "razon_confianza": "Envío gratis sugiere vendedor verificado",
+            "vale_la_pena": True,
         },
     ],
 }
