@@ -7,7 +7,7 @@ Extrae: título, precio, condición, envío y URL de cada producto.
 import asyncio
 import logging
 import random
-from urllib.parse import quote_plus, quote
+from urllib.parse import quote_plus
 
 import httpx
 from bs4 import BeautifulSoup
@@ -153,44 +153,64 @@ async def scrape_mercadolibre(query: str) -> list[Producto]:
     settings = get_settings()
     url_ml = _construir_url(query)
     headers = _construir_headers()
+    usando_proxy = bool(settings.scrapfly_api_key)
 
-    # Si hay key de ScraperAPI, routeamos la request por el proxy residencial.
-    # Desde IPs de datacenter (Render) ML redirige a /gz/account-verification y
-    # devuelve 0 resultados; el proxy rota IPs residenciales AR y evita el bloqueo.
-    if settings.scraper_api_key:
-        url = (
-            f"http://api.scraperapi.com/?api_key={settings.scraper_api_key}"
-            f"&country_code=ar&url={quote(url_ml, safe='')}"
-        )
-        logger.info(f"Scrapeando vía ScraperAPI: {url_ml}")
+    if usando_proxy:
+        logger.info(f"Scrapeando vía ScrapFly: {url_ml}")
     else:
-        url = url_ml
-        logger.info(f"Scrapeando MercadoLibre (directo): {url}")
+        logger.info(f"Scrapeando MercadoLibre (directo): {url_ml}")
 
     async with httpx.AsyncClient(
         follow_redirects=True,
-        # ScraperAPI puede tardar bastante porque rota IPs y reintenta internamente.
-        timeout=httpx.Timeout(60.0 if settings.scraper_api_key else 15.0),
+        # ScrapFly con render_js+residential puede tardar 30-60s: arranca un browser,
+        # rota IPs residenciales AR y espera que renderice JS de ML.
+        timeout=httpx.Timeout(90.0 if usando_proxy else 15.0),
     ) as client:
         # Delay para respetar rate limiting
         await asyncio.sleep(settings.scraping_delay)
 
-        response = await client.get(url, headers=headers)
+        if usando_proxy:
+            # Config confirmada que pasa el bloqueo de ML: residential + render_js + ASP.
+            # Costo: 30 créditos/scrape (25 residential + 5 browser). ~33 búsquedas/mes
+            # con el free tier de 1000 créditos.
+            response = await client.get(
+                "https://api.scrapfly.io/scrape",
+                params={
+                    "key": settings.scrapfly_api_key,
+                    "url": url_ml,
+                    "country": "ar",
+                    "proxy_pool": "public_residential_pool",
+                    "render_js": "true",
+                    "asp": "true",
+                },
+            )
+        else:
+            response = await client.get(url_ml, headers=headers)
+
         response.raise_for_status()
 
-        logger.info(f"Respuesta de ML: status={response.status_code}, largo={len(response.text)}")
+        # ScrapFly envuelve la respuesta en JSON: {"result": {"content": "<html>...", "status_code": 200, ...}}
+        # En modo directo httpx ya nos da el HTML en response.text.
+        if usando_proxy:
+            data = response.json()
+            result = data.get("result", {})
+            html = result.get("content", "")
+            status_destino = result.get("status_code", response.status_code)
+            logger.info(f"Respuesta de ML vía ScrapFly: status={status_destino}, largo={len(html)}")
+        else:
+            html = response.text
+            logger.info(f"Respuesta de ML: status={response.status_code}, largo={len(html)}")
 
-        # Detectar bloqueo anti-bot de ML: redirige a /gz/account-verification.
-        # Ocurre típicamente desde IPs de datacenter sin proxy residencial.
-        url_final = str(response.url)
-        if "account-verification" in url_final:
-            logger.error(
-                f"ML bloqueó la request redirigiendo a verificación: {url_final}. "
-                "Configurar SCRAPER_API_KEY o revisar el proxy."
-            )
-            return []
+            # Detectar bloqueo anti-bot cuando vamos sin proxy: redirige a /gz/account-verification.
+            url_final = str(response.url)
+            if "account-verification" in url_final:
+                logger.error(
+                    f"ML bloqueó la request redirigiendo a verificación: {url_final}. "
+                    "Configurar SCRAPFLY_API_KEY para pasar el bloqueo."
+                )
+                return []
 
-    productos = _parsear_productos(response.text, settings.max_productos)
+    productos = _parsear_productos(html, settings.max_productos)
     logger.info(f"Se extrajeron {len(productos)} productos para '{query}'")
 
     return productos

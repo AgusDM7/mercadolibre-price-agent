@@ -33,6 +33,10 @@ logging.basicConfig(
     #resultado 2026-04-16 14:23:45 [INFO] app.scraper: Scrapeando MercadoLibre: https://...
 )
 
+# Silenciamos httpx: por defecto loggea cada request con URL completa, lo que
+# filtra la SCRAPER_API_KEY (va en query string) y las llamadas a OpenAI.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 logger = logging.getLogger(__name__)
 
 # --- Rate limiting en memoria (por IP) ---

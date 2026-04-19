@@ -13,7 +13,7 @@ services:
         sync: false  # Se configura manualmente en el dashboard
       - key: REDIS_URL
         sync: false  # URL de Redis Cloud
-      - key: SCRAPER_API_KEY
-        sync: false  # Proxy residencial para evitar bloqueo anti-bot de ML
+      - key: SCRAPFLY_API_KEY
+        sync: false  # ScrapFly: proxy residencial + render_js para evitar bloqueo anti-bot de ML
       - key: PYTHON_VERSION
         value: 3.11.9
