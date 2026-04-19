@@ -162,17 +162,15 @@ async def scrape_mercadolibre(query: str) -> list[Producto]:
 
     async with httpx.AsyncClient(
         follow_redirects=True,
-        # ScrapFly con render_js+residential puede tardar 30-60s: arranca un browser,
-        # rota IPs residenciales AR y espera que renderice JS de ML.
-        timeout=httpx.Timeout(90.0 if usando_proxy else 15.0),
+        # ScrapFly con residential+ASP tarda 10-30s rotando IPs AR.
+        timeout=httpx.Timeout(60.0 if usando_proxy else 15.0),
     ) as client:
         # Delay para respetar rate limiting
         await asyncio.sleep(settings.scraping_delay)
 
         if usando_proxy:
-            # Config confirmada que pasa el bloqueo de ML: residential + render_js + ASP.
-            # Costo: 30 créditos/scrape (25 residential + 5 browser). ~33 búsquedas/mes
-            # con el free tier de 1000 créditos.
+            # Config confirmada que pasa el bloqueo de ML: residential + ASP (sin render_js).
+            # Costo: 25 créditos/scrape (residential). ~40 búsquedas/mes free tier.
             response = await client.get(
                 "https://api.scrapfly.io/scrape",
                 params={
@@ -180,7 +178,6 @@ async def scrape_mercadolibre(query: str) -> list[Producto]:
                     "url": url_ml,
                     "country": "ar",
                     "proxy_pool": "public_residential_pool",
-                    "render_js": "true",
                     "asp": "true",
                 },
             )
