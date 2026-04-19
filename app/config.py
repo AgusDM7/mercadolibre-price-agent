@@ -23,10 +23,12 @@ class Settings(BaseSettings):
     scraping_delay: float = 2.0
     # Minutos que dura el cache de resultados
     cache_ttl_minutos: int = 15
+    # API key de ScraperAPI (proxy residencial). Si está vacía, se hace request directa.
+    scraper_api_key: str | None = None
 
     # --- Rate Limiting ---
     # Máximo de búsquedas por IP por hora
-    max_busquedas_por_hora: int = 50
+    max_busquedas_por_hora: int = 5
 
     # --- App ---
     debug: bool = False

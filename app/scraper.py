@@ -7,7 +7,7 @@ Extrae: título, precio, condición, envío y URL de cada producto.
 import asyncio
 import logging
 import random
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, quote
 
 import httpx
 from bs4 import BeautifulSoup
@@ -151,14 +151,26 @@ async def scrape_mercadolibre(query: str) -> list[Producto]:
         Exception: Otros errores de red o parseo
     """
     settings = get_settings()
-    url = _construir_url(query)
+    url_ml = _construir_url(query)
     headers = _construir_headers()
 
-    logger.info(f"Scrapeando MercadoLibre: {url}")
+    # Si hay key de ScraperAPI, routeamos la request por el proxy residencial.
+    # Desde IPs de datacenter (Render) ML redirige a /gz/account-verification y
+    # devuelve 0 resultados; el proxy rota IPs residenciales AR y evita el bloqueo.
+    if settings.scraper_api_key:
+        url = (
+            f"http://api.scraperapi.com/?api_key={settings.scraper_api_key}"
+            f"&country_code=ar&url={quote(url_ml, safe='')}"
+        )
+        logger.info(f"Scrapeando vía ScraperAPI: {url_ml}")
+    else:
+        url = url_ml
+        logger.info(f"Scrapeando MercadoLibre (directo): {url}")
 
     async with httpx.AsyncClient(
         follow_redirects=True,
-        timeout=httpx.Timeout(15.0),
+        # ScraperAPI puede tardar bastante porque rota IPs y reintenta internamente.
+        timeout=httpx.Timeout(60.0 if settings.scraper_api_key else 15.0),
     ) as client:
         # Delay para respetar rate limiting
         await asyncio.sleep(settings.scraping_delay)
@@ -167,6 +179,16 @@ async def scrape_mercadolibre(query: str) -> list[Producto]:
         response.raise_for_status()
 
         logger.info(f"Respuesta de ML: status={response.status_code}, largo={len(response.text)}")
+
+        # Detectar bloqueo anti-bot de ML: redirige a /gz/account-verification.
+        # Ocurre típicamente desde IPs de datacenter sin proxy residencial.
+        url_final = str(response.url)
+        if "account-verification" in url_final:
+            logger.error(
+                f"ML bloqueó la request redirigiendo a verificación: {url_final}. "
+                "Configurar SCRAPER_API_KEY o revisar el proxy."
+            )
+            return []
 
     productos = _parsear_productos(response.text, settings.max_productos)
     logger.info(f"Se extrajeron {len(productos)} productos para '{query}'")
