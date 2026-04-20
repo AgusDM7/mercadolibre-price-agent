@@ -1,35 +1,90 @@
-# MercadoLibre Agent
+<div align="center">
 
-Agente web que busca productos en MercadoLibre Argentina, los analiza con un modelo de lenguaje (GPT-4o mini) y devuelve una recomendación de compra fundamentada: qué producto conviene, por qué, y cuán confiable es el vendedor.
+# MercadoLibre Price Agent
 
-El usuario escribe un término de búsqueda, el sistema hace scraping del listado, ordena los resultados y pide al LLM una evaluación basada en señales verificables (Tienda oficial, envío, calificación, precio relativo). La respuesta llega en pocos segundos a través de una interfaz reactiva sin frameworks JS pesados.
+**Agente inteligente que analiza productos de MercadoLibre Argentina y recomienda la mejor compra usando IA.**
 
-## Lo que hace distinto a este proyecto
+[![Live Demo](https://img.shields.io/badge/Live_Demo-Online-22c55e?style=for-the-badge&logo=render&logoColor=white)](https://mercadolibre-price-agent.onrender.com/)
+[![Python](https://img.shields.io/badge/Python-3.11+-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com/)
+[![OpenAI](https://img.shields.io/badge/GPT--4o_mini-412991?style=for-the-badge&logo=openai&logoColor=white)](https://openai.com/)
+[![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)](https://www.langchain.com/)
+[![Redis](https://img.shields.io/badge/Redis-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
+[![Celery](https://img.shields.io/badge/Celery-37814A?style=for-the-badge&logo=celery&logoColor=white)](https://docs.celeryq.dev/)
+[![HTMX](https://img.shields.io/badge/HTMX-3366CC?style=for-the-badge&logo=htmx&logoColor=white)](https://htmx.org/)
 
-**Monoproceso por diseño.** FastAPI, el worker de Celery y el scheduler de keep-alive corren dentro del mismo proceso Python. El worker se lanza como thread daemon con `--pool=threads` al arrancar la app, lo que permite desplegar todo el stack en un único dyno del free tier de Render sin perder el modelo de tareas asíncronas de Celery.
+### [**→ Probar la app en vivo**](https://mercadolibre-price-agent.onrender.com/)
 
-**Anti-sesgo posicional en el prompt.** Antes de enviar los productos al LLM, se ordenan por precio ascendente. MercadoLibre devuelve los resultados en un orden mixto (promocionados, relevancia), y los LLM tienden a priorizar lo que aparece primero. Reordenar elimina esa influencia y obliga al modelo a justificar la elección con criterios explícitos: Tienda oficial verificada, envío, calificación del producto y coherencia de precio.
+</div>
 
-**Reglas de confiabilidad codificadas en el system prompt.** La lógica de decisión del modelo está fijada: `Tienda oficial` pesa más que `envío gratis`, la ausencia de reseñas no es motivo para desconfiar, y ante empates técnicos gana el precio más bajo. El modelo no improvisa criterios.
+---
 
-**Interfaz reactiva con HTMX.** No hay React, Vue ni build step de frontend. El backend devuelve fragmentos de HTML que HTMX inserta en el DOM, con polling cada 2 segundos al endpoint de resultado. Mientras la tarea Celery avanza por sus etapas (`scraping` → `analizando`), el estado se refleja en la UI sin código JavaScript escrito a mano.
+## Descripción
 
-**Cache determinista y rate limiting por IP.** Las búsquedas idénticas (normalizadas) comparten un hash MD5 como clave en Redis con TTL configurable, evitando llamadas repetidas a OpenAI. El rate limit es una ventana deslizante por IP mantenida en memoria del proceso, suficiente dado el diseño monoproceso.
+**MercadoLibre Price Agent** es una aplicación web full-stack que automatiza el proceso de decisión de compra en MercadoLibre Argentina. El usuario ingresa un término de búsqueda y el sistema:
 
-**Keep-alive doble.** APScheduler hace self-ping al endpoint `/health` cada 10 minutos como respaldo interno; UptimeRobot como monitor externo. Render free tier duerme servicios inactivos a los 15 minutos, y esta redundancia mantiene la app despierta sin depender de un único mecanismo.
+1. Realiza **web scraping asíncrono** del listado de productos.
+2. Normaliza y ordena los datos para eliminar sesgo posicional.
+3. Envía la información a **GPT-4o mini** vía **LangChain** con un prompt cuidadosamente diseñado.
+4. Devuelve una recomendación **fundamentada** en señales verificables: Tienda oficial, envío, calificación del producto y coherencia de precio.
 
-## Stack
+El resultado es una UI reactiva —sin frameworks JS pesados— que muestra el progreso en tiempo real mientras el backend hace el trabajo pesado.
 
-| Componente        | Tecnología                              |
-| ----------------- | --------------------------------------- |
-| Backend           | FastAPI + Uvicorn                       |
-| Frontend          | Jinja2 + HTMX                           |
-| Scraping          | httpx (async) + BeautifulSoup4 + lxml   |
-| Tareas asíncronas | Celery con pool de threads              |
-| Broker y cache    | Redis                                   |
-| IA                | LangChain + GPT-4o mini                 |
-| Scheduler         | APScheduler                             |
-| Deploy            | Render (free tier)                      |
+---
+
+## Habilidades técnicas demostradas
+
+| Área | Tecnologías y prácticas |
+|---|---|
+| **Backend asíncrono** | FastAPI, `httpx` async, corrutinas, manejo de I/O concurrente |
+| **Ingeniería de IA** | Prompt engineering, LangChain, GPT-4o mini, parseo tolerante de JSON |
+| **Web scraping** | BeautifulSoup4 + lxml, rotación de User-Agent, uso de proxy residencial (ScrapFly) |
+| **Procesamiento en background** | Celery con pool de threads embebido en el mismo proceso |
+| **Cache y optimización** | Redis con TTL, hashing MD5 de queries normalizadas |
+| **Rate limiting** | Ventana deslizante por IP en memoria |
+| **Deploy y DevOps** | Render (free tier), keep-alive con APScheduler, monitoreo externo (UptimeRobot) |
+| **Frontend sin build** | HTMX + Jinja2, polling reactivo, Server-Side Rendering |
+| **Testing** | pytest con mocks de servicios externos (OpenAI, Redis, scraper) |
+| **Diseño de sistemas** | Arquitectura monoproceso consciente de restricciones del free tier |
+
+---
+
+## Decisiones de diseño destacables
+
+### Monoproceso por diseño
+FastAPI, el worker de Celery y el scheduler corren dentro del mismo proceso Python. El worker se lanza como thread daemon con `--pool=threads` al arrancar, lo que permite desplegar todo el stack en un único dyno del free tier **sin renunciar al modelo de tareas asíncronas de Celery**.
+
+### Anti-sesgo posicional en el prompt
+Los LLMs tienden a priorizar los primeros elementos de una lista. Antes de enviar los productos al modelo, se los **reordena por precio ascendente**, eliminando la influencia del orden original (promocionados, relevancia) y forzando al modelo a justificar la elección con criterios explícitos.
+
+### Reglas de confiabilidad codificadas
+El system prompt fija la jerarquía de criterios: `Tienda oficial` pesa más que `envío gratis`, la ausencia de reseñas no descalifica un producto, y los empates técnicos se rompen por precio. El modelo no improvisa.
+
+### Interfaz reactiva sin build step
+Cero React, cero Vue, cero bundler. HTMX inserta fragmentos de HTML devueltos por el backend con polling cada 2 segundos. El estado de la tarea (`scraping` → `analizando` → `completado`) se refleja en la UI sin JavaScript escrito a mano.
+
+### Cache determinista
+Queries normalizadas comparten un hash MD5 como clave en Redis con TTL configurable, evitando llamadas repetidas —y costosas— a OpenAI.
+
+### Keep-alive redundante
+APScheduler hace self-ping al endpoint `/health` cada 10 minutos como respaldo interno; UptimeRobot actúa como monitor externo. Render duerme servicios inactivos a los 15 minutos, y esta redundancia mantiene la app despierta sin depender de un único mecanismo.
+
+---
+
+## Stack técnico
+
+| Componente | Tecnología |
+|---|---|
+| Backend | FastAPI + Uvicorn |
+| Frontend | Jinja2 + HTMX |
+| Scraping | httpx (async) + BeautifulSoup4 + lxml + ScrapFly |
+| Tareas asíncronas | Celery con pool de threads |
+| Broker y cache | Redis |
+| IA | LangChain + GPT-4o mini |
+| Scheduler | APScheduler |
+| Deploy | Render (free tier) |
+
+---
 
 ## Arquitectura
 
@@ -56,6 +111,8 @@ Cola Redis  ---->  Worker Celery (thread del mismo proceso)
 Usuario
 ```
 
+---
+
 ## Estructura del proyecto
 
 ```
@@ -71,9 +128,11 @@ app/
 tests/           Tests con mocks de ML, OpenAI y Redis
 ```
 
-## Puesta en marcha
+---
 
-Requisitos: Python 3.11+, Redis accesible, API key de OpenAI.
+## Puesta en marcha local
+
+**Requisitos:** Python 3.11+, Redis accesible, API key de OpenAI.
 
 ```bash
 python -m venv venv
@@ -94,33 +153,50 @@ pytest tests/ --cov=app --cov-report=term-missing
 
 Los tests usan mocks para no depender de servicios externos.
 
+---
+
 ## Variables de entorno
 
-| Variable                  | Obligatoria | Default                    | Descripción                             |
-| ------------------------- | ----------- | -------------------------- | --------------------------------------- |
-| `OPENAI_API_KEY`          | Sí          | —                          | API key de OpenAI                       |
-| `REDIS_URL`               | Sí          | `redis://localhost:6379/0` | URL del broker/cache Redis              |
-| `MAX_PRODUCTOS`           | No          | `10`                       | Productos a extraer por búsqueda        |
-| `SCRAPING_DELAY`          | No          | `2.0`                      | Segundos entre requests a MercadoLibre  |
-| `CACHE_TTL_MINUTOS`       | No          | `15`                       | Duración del cache de resultados        |
-| `MAX_BUSQUEDAS_POR_HORA`  | No          | `5`                        | Límite de búsquedas por IP              |
-| `DEBUG`                   | No          | `false`                    | Modo debug                              |
+| Variable | Obligatoria | Default | Descripción |
+|---|---|---|---|
+| `OPENAI_API_KEY` | Sí | — | API key de OpenAI |
+| `REDIS_URL` | Sí | `redis://localhost:6379/0` | URL del broker/cache Redis |
+| `MAX_PRODUCTOS` | No | `10` | Productos a extraer por búsqueda |
+| `SCRAPING_DELAY` | No | `2.0` | Segundos entre requests a MercadoLibre |
+| `CACHE_TTL_MINUTOS` | No | `15` | Duración del cache de resultados |
+| `MAX_BUSQUEDAS_POR_HORA` | No | `5` | Límite de búsquedas por IP |
+| `DEBUG` | No | `false` | Modo debug |
+
+---
 
 ## Deploy en Render
 
-El repositorio incluye `render.yaml` y `Procfile`. El flujo resumido es:
+El repositorio incluye `render.yaml` y `Procfile`. Flujo resumido:
 
-1. Provisionar una base Redis (por ejemplo Redis Cloud free tier) y copiar la URL.
-2. Crear un Web Service en Render apuntando al repo; configurar `OPENAI_API_KEY` y `REDIS_URL` en las variables de entorno.
+1. Provisionar Redis (por ejemplo Redis Cloud free tier) y copiar la URL.
+2. Crear un Web Service en Render apuntando al repo; configurar `OPENAI_API_KEY` y `REDIS_URL`.
 3. Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
 4. Agregar un monitor externo (UptimeRobot) al endpoint `/health` cada 5 minutos.
 
-## Consideraciones
+---
 
-- El scraper depende de los selectores CSS actuales de MercadoLibre (`li.ui-search-layout__item`, `poly-component__title`, etc.). Cambios en el markup de ML requieren actualizar `app/scraper.py`.
+## Consideraciones técnicas
+
+- El scraper depende de los selectores CSS actuales de MercadoLibre. Cambios en el markup requieren actualizar [app/scraper.py](app/scraper.py).
 - Las tareas Celery tienen un timeout suave de 120 segundos; búsquedas más lentas devuelven un error controlado en lugar de colgar la UI.
-- El rate limit es por proceso; al correr múltiples instancias convendría moverlo a Redis.
+- El rate limit es por proceso; al escalar a múltiples instancias convendría moverlo a Redis.
+
+---
+
+## Autor
+
+**Agustín Del Monte** — Desarrollador backend con foco en Python, IA aplicada y arquitecturas eficientes.
+
+- GitHub: [@AgusDM7](https://github.com/AgusDM7)
+- Email: delmonteagustin1@gmail.com
+
+---
 
 ## Licencia
 
-MIT.
+MIT
