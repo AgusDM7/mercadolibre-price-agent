@@ -195,8 +195,4 @@ El repositorio incluye `render.yaml` y `Procfile`. Flujo resumido:
 - GitHub: [@AgusDM7](https://github.com/AgusDM7)
 - Email: delmonteagustin1@gmail.com
 
----
 
-## Licencia
-
-MIT
