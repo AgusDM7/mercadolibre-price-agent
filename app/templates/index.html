@@ -5,6 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>MercadoLibre Agent — Análisis IA de Productos</title>
+    <link rel="icon" type="image/png" href="/static/favicon.png">
     <script src="https://unpkg.com/htmx.org@2.0.4"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -400,6 +401,22 @@
             user-select: none
         }
 
+        @media (min-width:601px) and (max-width:1400px) {
+            .mascota {
+                width: 240px;
+                height: 240px
+            }
+        }
+
+        @media (max-width:600px) {
+            .mascota {
+                width: 180px;
+                height: 180px;
+                left: -.5rem;
+                bottom: -.5rem
+            }
+        }
+
         @media (max-width:600px) {
             .container {
                 padding: 1.5rem 1rem
@@ -427,13 +444,6 @@
 
             .mejor-opcion-card {
                 padding: 1.2rem
-            }
-
-            .mascota {
-                width: 180px;
-                height: 180px;
-                left: -.5rem;
-                bottom: -.5rem
             }
         }
     </style>
