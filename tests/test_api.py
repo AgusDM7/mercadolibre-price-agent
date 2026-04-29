@@ -13,9 +13,8 @@ from app.main import app, _verificar_rate_limit, rate_limit_registro
 
 @pytest.fixture
 def client():
-    """Cliente de test que no inicia Celery ni APScheduler. simula requests HTTP sin iniciar un servidor real."""
-    with patch("app.main._iniciar_worker_celery"), \
-         patch("app.main._iniciar_scheduler"):
+    """Cliente de test que no inicia Celery. Simula requests HTTP sin iniciar un servidor real."""
+    with patch("app.main._iniciar_worker_celery"):
         with TestClient(app) as c:
             yield c
 

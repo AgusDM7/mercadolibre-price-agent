@@ -13,9 +13,6 @@ lxml==5.3.0
 celery==5.4.0
 redis==5.2.1
 
-# Scheduler (keep-alive)
-apscheduler==3.10.4
-
 # IA
 langchain==0.3.14
 langchain-core==0.3.63

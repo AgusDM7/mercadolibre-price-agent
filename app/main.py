@@ -3,21 +3,19 @@ Aplicación principal FastAPI.
 - Sirve la interfaz web (Jinja2 + HTMX)
 - Endpoints para búsqueda y consulta de resultados
 - Inicia el worker Celery como thread interno
-- APScheduler para keep-alive
 """
 
 import hashlib # generar hashes MD5 para claves de cache
 import html
 import json
 import logging
-import threading # Correr Celery como thread   
+import threading # Correr Celery como thread
 import time
 from collections import defaultdict # Diccionario con valor por defecto (para rate limiting)
-from contextlib import asynccontextmanager # Decorador para el lifespan de FastAPI  
+from contextlib import asynccontextmanager # Decorador para el lifespan de FastAPI
 from urllib.parse import quote_plus
 
 import redis
-from apscheduler.schedulers.background import BackgroundScheduler # Scheduler para self-ping
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -94,27 +92,6 @@ def _iniciar_worker_celery():
     logger.info("Worker Celery iniciado como thread daemon")
 
 
-def _iniciar_scheduler(): #A PScheduler es un **scheduler** (planificador) de tareas en Python.
-    """
-    Inicia APScheduler para el self-ping keep-alive.
-    Hace ping al propio servicio cada 10 minutos para evitar que Render lo duerma.
-    """
-    import httpx
-
-    def self_ping():
-        try:
-            with httpx.Client(timeout=10) as client:
-                response = client.get("http://127.0.0.1:8000/health")
-                logger.debug(f"Self-ping: {response.status_code}")
-        except Exception as e:
-            logger.warning(f"Self-ping falló: {e}")
-
-    scheduler = BackgroundScheduler()
-    scheduler.add_job(self_ping, "interval", minutes=10, id="keep_alive")
-    scheduler.start()
-    logger.info("APScheduler keep-alive iniciado (cada 10 min)")
-
-
 # --- Pool de conexiones Redis (reutilizable) ---
 redis_client: redis.Redis | None = None
 
@@ -136,7 +113,6 @@ async def lifespan(app: FastAPI):
     """Maneja el inicio y cierre de la aplicación."""
     logger.info("Iniciando aplicación MercadoLibre Agent...")
     _iniciar_worker_celery()
-    _iniciar_scheduler()
     yield # se ejecuta al cerrar
     logger.info("Cerrando aplicación...")
     if redis_client:
@@ -157,10 +133,10 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # --- Endpoints ---
 
-# Endpoint 1: `/health` (para keep-alive)
+# Endpoint 1: `/health` (para keep-alive externo)
 @app.get("/health")
 async def health():
-    """Endpoint de salud para UptimeRobot y self-ping."""
+    """Endpoint de salud usado por el workflow de GitHub Actions para evitar que Render duerma el servicio."""
     return {"status": "ok"}
 
 
