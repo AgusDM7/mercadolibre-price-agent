@@ -42,7 +42,6 @@ El resultado es una UI reactiva —sin frameworks JS pesados— que muestra el p
 | **Procesamiento en background** | Celery con pool de threads embebido en el mismo proceso |
 | **Cache y optimización** | Redis con TTL, hashing MD5 de queries normalizadas |
 | **Rate limiting** | Ventana deslizante por IP en memoria |
-| **Deploy y DevOps** | Render (free tier), keep-alive con GitHub Actions (cron) |
 | **Frontend sin build** | HTMX + Jinja2, polling reactivo, Server-Side Rendering |
 | **Testing** | pytest con mocks de servicios externos (OpenAI, Redis, scraper) |
 | **Diseño de sistemas** | Arquitectura monoproceso consciente de restricciones del free tier |
@@ -66,9 +65,6 @@ Cero React, cero Vue, cero bundler. HTMX inserta fragmentos de HTML devueltos po
 ### Cache determinista
 Queries normalizadas comparten un hash MD5 como clave en Redis con TTL configurable, evitando llamadas repetidas —y costosas— a OpenAI.
 
-### Keep-alive con GitHub Actions
-Render duerme servicios inactivos del free tier a los 15 minutos sin tráfico externo. Un self-ping desde dentro del propio contenedor no cuenta porque nunca pasa por el load balancer de Render. Por eso el keep-alive vive afuera del proceso: un workflow de GitHub Actions con `schedule: cron` hace `curl` al endpoint `/health` cada 10 minutos desde la infraestructura de GitHub.
-
 ---
 
 ## Stack técnico
@@ -81,7 +77,6 @@ Render duerme servicios inactivos del free tier a los 15 minutos sin tráfico ex
 | Tareas asíncronas | Celery con pool de threads |
 | Broker y cache | Redis |
 | IA | LangChain + GPT-4o mini |
-| Keep-alive | GitHub Actions (cron) |
 | Deploy | Render (free tier) |
 
 ---
@@ -176,7 +171,6 @@ El repositorio incluye `render.yaml` y `Procfile`. Flujo resumido:
 1. Provisionar Redis (por ejemplo Redis Cloud free tier) y copiar la URL.
 2. Crear un Web Service en Render apuntando al repo; configurar `OPENAI_API_KEY` y `REDIS_URL`.
 3. Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`.
-4. El workflow [.github/workflows/keep-alive.yml](.github/workflows/keep-alive.yml) pingea `/health` cada 10 minutos para que Render no duerma el servicio del free tier.
 
 ---
 

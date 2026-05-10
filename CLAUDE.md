@@ -39,7 +39,7 @@ redis-cli ping   # Debe responder PONG
 
 ## Arquitectura
 
-Monoproceso por diseño (Render free tier): FastAPI + worker Celery corren dentro del mismo proceso Python. El keep-alive vive afuera, en un workflow de GitHub Actions.
+Monoproceso por diseño (Render free tier): FastAPI + worker Celery corren dentro del mismo proceso Python. El keep-alive vive afuera, en betterstack.
 
 Flujo de una búsqueda:
 1. `POST /buscar` ([app/main.py](app/main.py)) valida input, chequea rate limit en memoria y mira cache en Redis.
@@ -51,7 +51,7 @@ Puntos de arquitectura no obvios:
 - **Worker Celery como thread daemon**: `_iniciar_worker_celery` en [app/main.py:70](app/main.py#L70) arranca Celery con `--pool=threads` dentro del mismo proceso FastAPI. No se corre `celery worker` por separado. Esto es intencional para caber en un solo dyno.
 - **Celery usa Redis como broker Y backend**: la misma `REDIS_URL` sirve para cola de mensajes, resultados de tareas y cache de búsquedas.
 - **Async dentro de tareas sync**: las tareas Celery son sync; usan el helper `_ejecutar_async` (que es `asyncio.run`) para invocar `scrape_mercadolibre` y `analizar_productos`, que son corrutinas.
-- **Keep-alive externo**: el workflow [.github/workflows/keep-alive.yml](.github/workflows/keep-alive.yml) hace `curl` a `/health` cada 10 min desde GitHub Actions. Render duerme el servicio a los 15 min sin tráfico externo, y un self-ping interno (loopback) no contaba como tráfico — por eso el ping vive afuera del proceso.
+- **Keep-alive externo**: betterstack
 - **Rate limiting en memoria**: `rate_limit_registro` es un `defaultdict` in-process ([app/main.py:40](app/main.py#L40)). No sobrevive a reinicios y no es compartido entre instancias — aceptable por el diseño monoproceso.
 - **Orden anti-sesgo para el LLM**: `analizar_productos` ordena los productos por precio ascendente antes de armar el prompt ([app/analyzer.py:107](app/analyzer.py#L107)) para que GPT-4o mini no se deje llevar por la posición original del listado.
 - **Prompt con reglas explícitas de confiabilidad**: las reglas (Tienda oficial como señal fuerte, calificación del PRODUCTO no del vendedor, empates van al precio más bajo) están hardcodeadas en `SYSTEM_PROMPT` de [app/analyzer.py](app/analyzer.py) — cambiarlas impacta directamente la recomendación.
