@@ -209,6 +209,36 @@
             font-size: .88rem
         }
 
+        .error-servicio {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: .75rem;
+            padding: 1.5rem 1rem;
+            text-align: center
+        }
+
+        .error-servicio__gif {
+            width: 120px;
+            height: auto
+        }
+
+        .error-servicio__titulo {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--danger)
+        }
+
+        .error-servicio__subtitulo {
+            font-size: .85rem;
+            color: var(--c5)
+        }
+
+        .error-servicio__link {
+            color: var(--accent);
+            text-decoration: underline
+        }
+
         .resumen-card {
             padding: 1.3rem 1.5rem;
             margin-bottom: 1rem
@@ -481,12 +511,13 @@
             const mascota = document.getElementById('mascota');
             const form = document.querySelector('.search-form');
             const resultado = document.getElementById('resultado');
-            const SPRITES = { start: '/static/mascota/mascotastart.gif', search: '/static/mascota/mascotasearch.gif', finish: '/static/mascota/mascotafinish.gif' };
+            const SPRITES = { start: '/static/mascota/mascotastart.gif', search: '/static/mascota/mascotasearch.gif', finish: '/static/mascota/mascotafinish.gif', error: '/static/mascota/mascotaerror.gif' };
             const setMascota = e => mascota.src = SPRITES[e] + '?t=' + Date.now();
 
             form.addEventListener('htmx:beforeRequest', () => setMascota('search'));
             resultado.addEventListener('htmx:afterSwap', () => {
                 if (resultado.querySelector('.loader')) setMascota('search');
+                else if (resultado.querySelector('.error-servicio')) setMascota('error');
                 else if (resultado.querySelector('.error-msg')) setMascota('start');
                 else setMascota('finish');
             });

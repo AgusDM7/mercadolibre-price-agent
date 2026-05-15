@@ -232,27 +232,29 @@ async def obtener_resultado(task_id: str, query: str = ""):
 
     # Tarea aún en progreso
     if task.state in ("PENDING", "PROCESANDO", "STARTED"):
-        etapa = ""
-        if task.info and isinstance(task.info, dict):
-            etapa = task.info.get("etapa", "")
-
-        texto_etapa = {
-            "scraping": "Extrayendo productos de MercadoLibre...",
-            "analizando": "Analizando productos con IA...",
-        }.get(etapa, "Procesando tu búsqueda...")
-
-        query_encoded = html.escape(quote_plus(query))
-        return HTMLResponse(f"""
-            <div hx-get="/resultado/{task_id}?query={query_encoded}"
-                 hx-trigger="every 2s"
-                 hx-target="#resultado"
-                 hx-swap="innerHTML">
-                <div class="loader">
-                    <div class="spinner"></div>
-                    <p class="loader-text">{texto_etapa}</p>
+        # Verificar si ya tiene resultado aunque el estado no sea SUCCESS
+        if task.result and isinstance(task.result, dict) and task.result.get("estado"):
+            resultado = task.result
+        else:
+            etapa = ""
+            if task.info and isinstance(task.info, dict):
+                etapa = task.info.get("etapa", "")
+            texto_etapa = {
+                "scraping": "Extrayendo productos de MercadoLibre...",
+                "analizando": "Analizando productos con IA...",
+            }.get(etapa, "Procesando tu búsqueda...")
+            query_encoded = html.escape(quote_plus(query))
+            return HTMLResponse(f"""
+                <div hx-get="/resultado/{task_id}?query={query_encoded}"
+                    hx-trigger="every 2s"
+                    hx-target="#resultado"
+                    hx-swap="innerHTML">
+                    <div class="loader">
+                        <div class="spinner"></div>
+                        <p class="loader-text">{texto_etapa}</p>
+                    </div>
                 </div>
-            </div>
-        """)
+            """)
 
     # Tarea falló
     if task.state == "FAILURE":
@@ -270,10 +272,31 @@ async def obtener_resultado(task_id: str, query: str = ""):
             <div class="error-msg">No se pudo obtener el resultado. Intentá de nuevo.</div>
         """)
 
+        # Error de servicio externo: estado explícito desde tasks, o 429 en el mensaje
+    # (el 429 puede llegar como "error" si el worker no se reinició tras actualizar tasks.py)
+    if resultado.get("estado") == "error_servicio" or (
+        resultado.get("estado") in ("error", "sin_resultados")
+        and "429" in resultado.get("error", "")
+    ):
+        return HTMLResponse("""
+            <div class="error-servicio">
+                <p class="error-servicio__titulo">Servicio de MercadoLibre temporalmente no disponible</p>
+                <p class="error-servicio__subtitulo">
+                    Estamos trabajando para resolverlo. Demo completa disponible en
+                    <a href="https://www.linkedin.com/feed/update/urn:li:activity:7459689333021667328/?utm_source=share&utm_medium=member_desktop&rcm=ACoAADygN6EB5Xsy8oCNTDR5d3tp8za97nAFBrs" target="_blank" rel="noopener" class="error-servicio__link">
+                        LinkedIn
+                    </a>
+                </p>
+            </div>
+        """)
+    
+    # El servicio de búsqueda no está disponible en este momento. Intentá de nuevo más tarde.</p>
+ 
     # Error controlado (sin resultados, timeout, etc.)
     if resultado.get("estado") in ("error", "sin_resultados"):
+        mensaje_error = resultado.get("error", "Error desconocido")
         return HTMLResponse(f"""
-            <div class="error-msg">{resultado.get("error", "Error desconocido")}</div>
+            <div class="error-msg">{html.escape(mensaje_error)}</div>
         """)
 
     # Guardar en cache para futuras búsquedas idénticas

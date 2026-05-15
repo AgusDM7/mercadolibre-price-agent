@@ -24,6 +24,17 @@ Comando limpiar cache redis para test
 python -c "import redis; from app.config import get_settings; r = redis.from_url(get_settings().redis_url); keys = r.keys('cache:busqueda:*'); print(f'Borrando {len(keys)} claves'); [r.delete(k) for k in keys]"
 ```
 
+Cache de Redis con resultados viejos
+```bash
+python -c "
+import redis
+from app.config import get_settings
+r = redis.from_url(get_settings().redis_url)
+r.flushdb()
+print('Redis limpio')
+"
+```
+
 Tests:
 ```bash
 pytest tests/ -v                      # Todos

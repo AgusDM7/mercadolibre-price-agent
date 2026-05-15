@@ -171,7 +171,7 @@ async def scrape_mercadolibre(query: str) -> list[Producto]:
         if usando_proxy:
             # Config confirmada que pasa el bloqueo de ML: residential + ASP (sin render_js).
             # Costo: 25 créditos/scrape (residential). ~40 búsquedas/mes free tier.
-            response = await client.get(
+           response = await client.get(
                 "https://api.scrapfly.io/scrape",
                 params={
                     "key": settings.scrapfly_api_key,
@@ -179,8 +179,11 @@ async def scrape_mercadolibre(query: str) -> list[Producto]:
                     "country": "ar",
                     "proxy_pool": "public_residential_pool",
                     "asp": "true",
+                    "render_js": "true",          # ejecuta el JS del challenge
+                    "wait_for_selector": "li.ui-search-layout__item",  # espera a que carguen los productos
                 },
             )
+           
         else:
             response = await client.get(url_ml, headers=headers)
 

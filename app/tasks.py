@@ -72,6 +72,21 @@ def buscar_y_analizar(self, query: str) -> dict:
         productos = _ejecutar_async(scrape_mercadolibre(query))
 
         if not productos:
+            # Si hay API key configurada, el scraper debería haber devuelto resultados.
+            # Lista vacía con proxy activo indica fallo del servicio externo (tokens agotados,
+            # bloqueo nuevo, timeout, etc.) y no una búsqueda sin resultados reales.
+            settings = get_settings()
+            if settings.scrapfly_api_key:
+                logger.warning(
+                    f"[Tarea {self.request.id}] Scraper devolvió vacío con proxy activo "
+                    f"para '{query}'. Posible fallo del servicio externo."
+                )
+                return {
+                    "estado": "error_servicio",
+                    "error": f"No se encontraron resultados para: {query}",
+                    "query": query,
+                }
+            # Sin proxy: la búsqueda simplemente no tuvo resultados en ML
             return {
                 "estado": "sin_resultados",
                 "error": f"No se encontraron productos para '{query}'",
@@ -102,9 +117,16 @@ def buscar_y_analizar(self, query: str) -> dict:
             "error": "La búsqueda tardó demasiado. Intentá de nuevo.",
             "query": query,
         }
-    
 
     except Exception as e:
+        # 429 de ScrapFly = cuota agotada (free tier u otro límite del plan)
+        if "429" in str(e):
+            logger.warning(f"[Tarea {self.request.id}] Cuota de ScrapFly agotada (429)")
+            return {
+                "estado": "error_servicio",
+                "error": str(e),
+                "query": query,
+            }
         logger.error(f"[Tarea {self.request.id}] Error: {e}", exc_info=True)
         return {
             "estado": "error",
