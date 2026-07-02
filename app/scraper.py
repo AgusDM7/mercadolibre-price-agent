@@ -50,7 +50,7 @@ def _construir_url(query: str) -> str:
     
     """
     query_entrecomillada = f'"{query}"'
-    return f"{ML_BASE_URL}/{quote_plus(query_entrecomillada)}"
+    return f"{ML_BASE_URL}/{query_entrecomillada}"
 
 
 def _extraer_precio(texto: str) -> float | None:
