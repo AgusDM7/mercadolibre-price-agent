@@ -32,6 +32,8 @@ DEBUG_DIR = Path(__file__).resolve().parent.parent / "debug" / "ml_debug"
 # selectores sino que directamente no llegó la página de resultados.
 MARCADORES_BLOQUEO = [
     "account-verification",
+    "captcha/wall",
+    "abuse-captcha",
     "captcha",
     "verificá que sos humano",
     "verifica que sos humano",
@@ -48,6 +50,11 @@ MARCADORES_BLOQUEO = [
     "acceso denegado",
     "access denied",
 ]
+
+# Código de error de ScrapFly que aparece cuando ML sirvió el muro de captcha
+# en lugar de los resultados (ScrapFly espera el selector, no aparece, y
+# responde HTTP 422). Se trata como bloqueo y no como error fatal.
+ERR_SELECTOR_NO_ENCONTRADO = "ERR::SCRAPE::DOM_SELECTOR_NOT_FOUND"
 
 # Selectores alternativos a probar cuando el principal (li.ui-search-layout__item)
 # no matchea nada. Sirve para distinguir "ML renombró la clase" (algún candidato
@@ -75,7 +82,8 @@ ESPERA_ENTRE_INTENTOS_SEGUNDOS = 2.0
 
 def _url_indica_bloqueo(url: str) -> bool:
     """True si la URL final de la request es la de verificación anti-bot de ML."""
-    return "account-verification" in (url or "")
+    url = url or ""
+    return "account-verification" in url or "captcha/wall" in url
 
 
 def _html_indica_bloqueo(html: str) -> bool:
@@ -127,7 +135,7 @@ def _diagnosticar_html_sin_resultados(html: str, query: str, usando_proxy: bool)
 
     conteos = {}
     try:
-        soup = BeautifulSoup(html, "lxml")
+        soup = BeautifulSoup(html, "html.parser")
         for sel in SELECTORES_CANDIDATOS:
             try:
                 conteos[sel] = len(soup.select(sel))
@@ -216,7 +224,7 @@ def _parsear_productos(html: str, max_productos: int) -> list[Producto]:
     ML usa tarjetas "poly-card" dentro de elementos <li> del layout.
     Extrae título, precio, condición, envío y URL de cada producto.
     """
-    soup = BeautifulSoup(html, "lxml")
+    soup = BeautifulSoup(html, "html.parser")
     productos: list[Producto] = []
 
     # Selector principal: items del grid de resultados
@@ -328,6 +336,29 @@ async def _intentar_request(
         # que lo logueamos y lo volcamos a disco antes de relanzar. No se
         # reintenta este caso: un 429 de cuota no se arregla reintentando.
         cuerpo = e.response.text
+
+        # Extraer el código de error de ScrapFly (si el body es JSON válido).
+        codigo_error = ""
+        try:
+            err_json = e.response.json()
+            err_result = err_json.get("result", {}) or {}
+            err_obj = err_result.get("error") or err_json.get("error") or {}
+            if isinstance(err_obj, dict):
+                codigo_error = err_obj.get("code", "") or ""
+        except Exception:
+            pass
+
+        # 422 por selector no encontrado: ML sirvió el muro de captcha en lugar
+        # de los resultados. Se trata como bloqueo (intermitente) para que el
+        # bucle de scrape_mercadolibre reintente, en vez de abortar la tarea.
+        if codigo_error == ERR_SELECTOR_NO_ENCONTRADO:
+            logger.warning(
+                f"[diagnóstico] ScrapFly respondió HTTP {e.response.status_code} "
+                f"({codigo_error}): ML probablemente mostró el captcha. "
+                "Se trata como bloqueo."
+            )
+            return cuerpo, True, "captcha/wall"
+
         logger.error(
             f"[diagnóstico] Falló la request (proxy={usando_proxy}): "
             f"HTTP {e.response.status_code}. Body: {cuerpo[:2000]}"
